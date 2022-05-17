@@ -7,6 +7,44 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/wait.h>
+
+void compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudentDirectory) {
+    // here we compile the c file, with given path to the file
+    // we should use fork and child proccess
+    char* command = "gcc";
+    char* commandArgs[5];
+    commandArgs[0] = "gcc";
+    commandArgs[1] = pathToCFile;
+    commandArgs[2] = "-o";
+    commandArgs[3] = cFileWithOutSuffix;
+    commandArgs[4] = NULL;
+    // Forking a child
+	// fork returns pid of the son
+	pid_t pid = fork();
+	// -1 failed
+	// need to print here perror - fork failed
+	if (pid == -1) {
+		write(2,"Error in: fork\n", 16);
+        // need to move the error to errors.txt
+        exit(-1);
+	// if fork=0 im in son proccess
+	} else if (pid == 0) {
+        printf("inside pid 0\n");
+		// need to print here perror "failed.."
+        chdir(pathToStudentDirectory);
+        // need to check if chdir worked
+		if (execvp(command, commandArgs) < 0) {
+			write(2,"Error in: execvp\n", 18);
+            // need to move the error to errors.txt
+            exit(-1);
+		}
+	} else {
+		// waiting for child to terminate
+		wait(NULL);
+		return;
+	}
+}
 
 int main(int argc, char* argv[])
 {
@@ -87,6 +125,13 @@ int main(int argc, char* argv[])
                         strcat(pathToCFile, "/");
                         strcat(pathToCFile, insideStudentDirectory -> d_name);
                         printf("this is our c file full path: %s\n", pathToCFile);
+                        char cFileWithOutSuffix[150] = {'\0'};
+                        strcat(cFileWithOutSuffix, insideStudentDirectory -> d_name);
+                        cFileWithOutSuffix[lengthOfFileName-1] = '\0';
+                        cFileWithOutSuffix[lengthOfFileName-2] = '\0';
+                        strcat(cFileWithOutSuffix, ".out");
+                        printf("and this is our c file without suffix: %s\n", cFileWithOutSuffix);
+                        compileFile(pathToCFile, cFileWithOutSuffix, pathToStudentDirectory);
                     }
                 }
             }
