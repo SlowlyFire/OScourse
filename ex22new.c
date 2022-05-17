@@ -8,26 +8,6 @@
 #include <unistd.h>
 #include <dirent.h>
 
-void openDirectoryOfStudent(char* pathToStudentDirectory) {
-    DIR* dirOfSpecificStudent = opendir(pathToStudentDirectory);
-    if (dirOfSpecificStudent == NULL) {
-        write(2,"can't open dirOfSpecificStudent\n", 33);
-        // need to move the error to errors.txt
-        exit(-1);
-    }
-    printf("opened\n");
-    struct dirent *insideStudentDirectory; 
-    while ( (insideStudentDirectory = readdir(dirOfSpecificStudent)) != NULL ) {
-        if(strcmp(insideStudentDirectory -> d_name, ".") != 0 &&
-        strcmp(insideStudentDirectory -> d_name, "..") != 0) {
-            printf("this is: %s\n", insideStudentDirectory -> d_name); 
-        }
-    }
-    printf("\n");
-    pathToStudentDirectory[0] = '\0';
-    closedir(dirOfSpecificStudent);
-}
-
 int main(int argc, char* argv[])
 {
     int fd;
@@ -84,8 +64,36 @@ int main(int argc, char* argv[])
             strcat(pathToStudentDirectory, "/");
             strcat(pathToStudentDirectory, studentXDir -> d_name);
             printf("pathToStudentDirectory is: %s\n", pathToStudentDirectory);
-            openDirectoryOfStudent(pathToStudentDirectory);
-        }
+            DIR* dirOfSpecificStudent = opendir(pathToStudentDirectory);
+            if (dirOfSpecificStudent == NULL) {
+                write(2,"can't open dirOfSpecificStudent\n", 33);
+                // need to move the error to errors.txt
+                exit(-1);
+            }
+            printf("opened\n");
+            struct dirent *insideStudentDirectory; 
+            int lengthOfFileName;
+            while ( (insideStudentDirectory = readdir(dirOfSpecificStudent)) != NULL ) {
+                if(strcmp(insideStudentDirectory -> d_name, ".") != 0 &&
+                strcmp(insideStudentDirectory -> d_name, "..") != 0) {
+                    printf("this is: %s\n", insideStudentDirectory -> d_name);
+                    lengthOfFileName =  strlen(insideStudentDirectory -> d_name);
+                    if((insideStudentDirectory -> d_name[lengthOfFileName-2]) == '.' 
+                    && (insideStudentDirectory -> d_name[lengthOfFileName-1]) == 'c') {
+                        printf("this is our c file: %s\n", insideStudentDirectory -> d_name);
+                        // now we build the c file a full path
+                        char pathToCFile[150] = {'\0'};
+                        strcat(pathToCFile, pathToStudentDirectory);
+                        strcat(pathToCFile, "/");
+                        strcat(pathToCFile, insideStudentDirectory -> d_name);
+                        printf("this is our c file full path: %s\n", pathToCFile);
+                    }
+                }
+            }
+            printf("\n");
+            pathToStudentDirectory[0] = '\0';
+            closedir(dirOfSpecificStudent);
+            }
     } 
     closedir(dirOfAllStudents);
 }
