@@ -46,6 +46,50 @@ void compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStuden
 	}
 }
 
+void runFile(char* pathToCFile, char* confLine2, char* cFileWithOutSuffix, char* pathToStudentDirectory, int fdInputFile, int fdOutputFile) {
+    // here we run the c file, with given path to the file
+    // and with given path to a file that containts the input we wish to use.
+    // this input is line 2 of conf.txt
+    // we should use fork and child proccess
+    char command[150] = {'\0'};
+    strcat(command, "./");
+    strcat(command, cFileWithOutSuffix);
+    char* commandArgs[3];
+    commandArgs[0] = command;
+    commandArgs[1] = confLine2;
+    commandArgs[2] = NULL;
+    //printf("%s %s %s %s\n", command, commandArgs[0], commandArgs[1], commandArgs[2]);
+    // Forking a child
+	// fork returns pid of the son
+	pid_t pid = fork();
+	// -1 failed
+	// need to print here perror - fork failed
+	if (pid == -1) {
+		write(2,"Error in: fork\n", 16);
+        // need to move the error to errors.txt
+        exit(-1);
+	// if fork=0 im in son proccess
+	} else if (pid == 0) {
+        printf("inside pid 0 of runFile\n");
+        // redirection
+        dup2(fdInputFile, 0);
+        dup2(fdOutputFile, 1);
+        //printf("after dupping in runFile\n");
+		// need to print here perror "failed.."
+        //chdir(pathToStudentDirectory);
+        // need to check if chdir worked
+		if (execvp(command, commandArgs) < 0) {
+			write(1,"Error in: execvp\n", 19);
+            // need to move the error to errors.txt
+            exit(-1);
+		}
+	} else {
+		// waiting for child to terminate
+		wait(NULL);
+		return;
+	}
+}
+
 int main(int argc, char* argv[])
 {
     int fd;
@@ -130,8 +174,30 @@ int main(int argc, char* argv[])
                         cFileWithOutSuffix[lengthOfFileName-1] = '\0';
                         cFileWithOutSuffix[lengthOfFileName-2] = '\0';
                         strcat(cFileWithOutSuffix, ".out");
-                        printf("and this is our c file without suffix: %s\n", cFileWithOutSuffix);
+                        printf("and this is our c file with out suffix: %s\n", cFileWithOutSuffix);
                         compileFile(pathToCFile, cFileWithOutSuffix, pathToStudentDirectory);
+                        int fdInputFile;
+                        fdInputFile = open(confLine2, O_RDONLY);
+                        if (fdInputFile == -1) {
+                            write(2,"Error in: open\n", 16);
+                            // need to move the error to errors.txt
+                            exit(-1);
+                        }
+                        printf("fd of inputFile (confLine2) is: %d\n", fdInputFile);   
+                        chdir(pathToStudentDirectory);
+                        int fdOutputFile;
+                        fdOutputFile = open("outputFile.txt", O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+                        if (fdOutputFile == -1) {
+                            write(2,"Error in: open\n", 16);
+                            // need to move the error to errors.txt
+                            exit(-1);
+                        }
+                        printf("fd of new created OutputFile is: %d\n", fdOutputFile);
+                        
+                        runFile(pathToCFile, confLine2, cFileWithOutSuffix, pathToStudentDirectory, fdInputFile, fdOutputFile);
+                        // close files in the end of the use of fd
+                        close(fdInputFile);
+                        close(fdOutputFile);
                     }
                 }
             }
