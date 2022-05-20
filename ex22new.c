@@ -9,7 +9,7 @@
 #include <dirent.h>
 #include <sys/wait.h>
 
-void compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudentDirectory) {
+int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudentDirectory) {
     // here we compile the c file, with given path to the file
     // we should use fork and child proccess
     char* command = "gcc";
@@ -30,23 +30,25 @@ void compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStuden
         exit(-1);
 	// if fork=0 im in son proccess
 	} else if (pid == 0) {
-        printf("inside pid 0\n");
+        printf("inside compile pid 0\n");
 		// need to print here perror "failed.."
         chdir(pathToStudentDirectory);
         // need to check if chdir worked
 		if (execvp(command, commandArgs) < 0) {
-			write(2,"Error in: execvp\n", 18);
+			write(1,"Error in: execvp\n", 18);
             // need to move the error to errors.txt
             exit(-1);
 		}
 	} else {
 		// waiting for child to terminate
-		wait(NULL);
-		return;
+		int status;
+        waitpid(pid, &status, 0);
+        int result = WEXITSTATUS(status);
+        return result;
 	}
 }
 
-void runFile(char* pathToCFile, char* confLine2, char* cFileWithOutSuffix, char* pathToStudentDirectory, int fdInputFile, int fdOutputFile) {
+void runFile(char* confLine2, char* cFileWithOutSuffix, int fdInputFile, int fdOutputFile) {
     // here we run the c file, with given path to the file
     // and with given path to a file that containts the input we wish to use.
     // this input is line 2 of conf.txt
@@ -76,7 +78,6 @@ void runFile(char* pathToCFile, char* confLine2, char* cFileWithOutSuffix, char*
         dup2(fdOutputFile, 1);
         //printf("after dupping in runFile\n");
 		// need to print here perror "failed.."
-        //chdir(pathToStudentDirectory);
         // need to check if chdir worked
 		if (execvp(command, commandArgs) < 0) {
 			write(1,"Error in: execvp\n", 19);
@@ -87,6 +88,55 @@ void runFile(char* pathToCFile, char* confLine2, char* cFileWithOutSuffix, char*
 		// waiting for child to terminate
 		wait(NULL);
 		return;
+	}
+}
+
+int compareOutputs(char* confLine3, char* pathToStudentDirectory) {
+    // here we compare between to output files and return what comp.out gives us,
+    char studentOutput[150] = {'\0'};
+    strcat(studentOutput, pathToStudentDirectory);
+    strcat(studentOutput, "/outputFile.txt");
+    printf("studentOutput is: %s\n", studentOutput);
+    // we should use fork and child proccess
+    // there is a chance I need to give here a full path
+    char* command = "./comp.out";
+    char* commandArgs[4];
+    commandArgs[0] = command;
+    // confLine3 is excpectedOutput
+    commandArgs[1] = confLine3;
+    // there is a chance I need to give here a full path
+    commandArgs[2] = studentOutput;
+    commandArgs[3] = NULL;
+    //printf("%s %s %s %s %s\n", command, commandArgs[0], commandArgs[1], commandArgs[2], commandArgs[3]);
+    // Forking a child
+	// fork returns pid of the son
+	pid_t pid = fork();
+	// -1 failed
+	// need to print here perror - fork failed
+	if (pid == -1) {
+		write(2,"Error in: fork\n", 16);
+        // need to move the error to errors.txt
+        exit(-1);
+	// if fork=0 im in son proccess
+	} else if (pid == 0) {
+        printf("inside pid 0 of compare\n");
+        // going to the directory where comp.out is located
+        chdir(pathToStudentDirectory);
+        chdir("..");
+        chdir("..");
+		// need to print here perror "failed.."
+        // need to check if chdir worked
+		if (execvp(command, commandArgs) < 0) {
+			write(1,"Error in: execvp\n", 1);
+            // need to move the error to errors.txt
+            exit(-1);
+        }
+	} else {
+        // waiting for child to terminate
+        int status;
+        waitpid(pid, &status, 0);
+        int result = WEXITSTATUS(status);
+        return result;
 	}
 }
 
@@ -125,6 +175,14 @@ int main(int argc, char* argv[])
     printf("confLine2: %s\n", confLine2);
     printf("confLine3: %s\n", confLine3);
 
+    int resultsFd;
+    resultsFd = open("results.csv", O_RDWR | O_TRUNC | O_APPEND | O_CREAT, 0777);
+    if (resultsFd == -1) {
+        write(2,"Error in: open\n", 16);
+        // need to move the error to errors.txt
+        exit(-1);
+    }
+    printf("fd of results.csv is: %d\n", resultsFd);
 
     // now we should open the directory we got on confLine1
     DIR* dirOfAllStudents = opendir(confLine1);
@@ -139,6 +197,8 @@ int main(int argc, char* argv[])
     while ( (studentXDir = readdir(dirOfAllStudents)) != NULL ) {
         if(strcmp(studentXDir -> d_name, ".") != 0 &&
         strcmp(studentXDir -> d_name, "..") != 0) {
+            // flagCFile is 0 when there is no c file in directory
+            int flagCFile = 0;
             printf("%s\n", studentXDir -> d_name); 
             // now we create the path to the student directory
             char pathToStudentDirectory[150] = {'\0'};
@@ -162,6 +222,8 @@ int main(int argc, char* argv[])
                     lengthOfFileName =  strlen(insideStudentDirectory -> d_name);
                     if((insideStudentDirectory -> d_name[lengthOfFileName-2]) == '.' 
                     && (insideStudentDirectory -> d_name[lengthOfFileName-1]) == 'c') {
+                        // if we found a ".c" file in Student Directory, flagCFile is 1
+                        flagCFile = 1;
                         printf("this is our c file: %s\n", insideStudentDirectory -> d_name);
                         // now we build the c file a full path
                         char pathToCFile[150] = {'\0'};
@@ -175,7 +237,14 @@ int main(int argc, char* argv[])
                         cFileWithOutSuffix[lengthOfFileName-2] = '\0';
                         strcat(cFileWithOutSuffix, ".out");
                         printf("and this is our c file with out suffix: %s\n", cFileWithOutSuffix);
-                        compileFile(pathToCFile, cFileWithOutSuffix, pathToStudentDirectory);
+                        int compileResult = compileFile(pathToCFile, cFileWithOutSuffix, pathToStudentDirectory);
+                        printf("this is compileResult: %d\n", compileResult);
+                        // compileResult will be 0 if managed to compile, and 1 if couldn't compile
+                        if (compileResult == 1) {
+                            write(resultsFd, studentXDir -> d_name, strlen(studentXDir -> d_name));
+                            write(resultsFd, ",10,COMPILATION_ERROR\n", 22);
+                            continue;
+                        }
                         int fdInputFile;
                         fdInputFile = open(confLine2, O_RDONLY);
                         if (fdInputFile == -1) {
@@ -194,17 +263,41 @@ int main(int argc, char* argv[])
                         }
                         printf("fd of new created OutputFile is: %d\n", fdOutputFile);
                         
-                        runFile(pathToCFile, confLine2, cFileWithOutSuffix, pathToStudentDirectory, fdInputFile, fdOutputFile);
+                        runFile(confLine2, cFileWithOutSuffix, fdInputFile, fdOutputFile);
                         // close files in the end of the use of fd
                         close(fdInputFile);
                         close(fdOutputFile);
+                        int compareNum;
+                        compareNum = compareOutputs(confLine3, pathToStudentDirectory);
+                        printf("compareNum is: %d\n", compareNum);
+
+                        // append grades of students to results.csv file 
+                        write(resultsFd, studentXDir -> d_name, strlen(studentXDir -> d_name));
+                        // if files are different
+                        if(compareNum == 2) {
+                            write(resultsFd, ",50,WRONG\n", 10);
+                        }
+                        // if files are similar
+                        if (compareNum == 3) {
+                            write(resultsFd, ",75,SIMILAR\n", 12);
+                        }
+                        if(compareNum == 1) {
+                            write(resultsFd, ",100,EXCELLENT\n", 15);
+                        }
                     }
                 }
+            }
+            if (flagCFile == 0) {
+                write(resultsFd, studentXDir -> d_name, strlen(studentXDir -> d_name));
+                write(resultsFd, ",0,NO_C_FILE\n", 13);
             }
             printf("\n");
             pathToStudentDirectory[0] = '\0';
             closedir(dirOfSpecificStudent);
-            }
+        }
     } 
+    write(resultsFd, "\n", 1);
+    close(resultsFd);
     closedir(dirOfAllStudents);
+    //return;
 }
