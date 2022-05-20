@@ -18,6 +18,7 @@
 #define OPENDIR_ERROR "Error in: opendir"
 
 int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudentDirectory) {
+    pid_t pid;
     // here we compile the c file, with given path to the file
     // we should use fork and child proccess
     char* command = "gcc";
@@ -29,22 +30,26 @@ int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudent
     commandArgs[4] = NULL;
     // Forking a child
 	// fork returns pid of the son
-	pid_t pid = fork();
-	// -1 failed
-	// need to print here perror - fork failed
-	if (pid == -1) {
-		write(2,"Error in: fork\n", 16);
-        // need to move the error to errors.txt
+	if((pid = fork()) == -1) {
+        perror(FORK_ERROR);
+        //close(resultsFd);
+        //close(fd);
+        //close(fdErrorFile);
         exit(-1);
 	// if fork=0 im in son proccess
 	} else if (pid == 0) {
-        printf("inside compile pid 0\n");
-		// need to print here perror "failed.."
-        chdir(pathToStudentDirectory);
-        // need to check if chdir worked
+        if (chdir(pathToStudentDirectory) == -1) {
+            perror(CHDIR_ERROR);
+            //close(resultsFd);
+            //close(fd);
+            //close(fdErrorFile);
+            exit(-1);
+        }
 		if (execvp(command, commandArgs) < 0) {
-			write(1,"Error in: execvp\n", 18);
-            // need to move the error to errors.txt
+			perror(EXECVP_ERROR);
+            //close(resultsFd);
+            //close(fd);
+            //close(fdErrorFile);
             exit(-1);
 		}
 	} else {
@@ -57,6 +62,7 @@ int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudent
 }
 
 void runFile(char* confLine2, char* cFileWithOutSuffix, int fdInputFile, int fdOutputFile) {
+    pid_t pid;
     // here we run the c file, with given path to the file
     // and with given path to a file that containts the input we wish to use.
     // this input is line 2 of conf.txt
@@ -68,28 +74,27 @@ void runFile(char* confLine2, char* cFileWithOutSuffix, int fdInputFile, int fdO
     commandArgs[0] = command;
     commandArgs[1] = confLine2;
     commandArgs[2] = NULL;
-    //printf("%s %s %s %s\n", command, commandArgs[0], commandArgs[1], commandArgs[2]);
     // Forking a child
-	// fork returns pid of the son
-	pid_t pid = fork();
-	// -1 failed
-	// need to print here perror - fork failed
-	if (pid == -1) {
-		write(2,"Error in: fork\n", 16);
-        // need to move the error to errors.txt
+	if ((pid = fork()) == -1) {
+        perror(FORK_ERROR);
+        //close(fdOutputFile);
+        //close(fdInputFile);
+        //close(resultsFd);
+        //close(fd);
+        //close(fdErrorFile);
         exit(-1);
 	// if fork=0 im in son proccess
 	} else if (pid == 0) {
-        printf("inside pid 0 of runFile\n");
         // redirection
         dup2(fdInputFile, 0);
         dup2(fdOutputFile, 1);
-        //printf("after dupping in runFile\n");
-		// need to print here perror "failed.."
-        // need to check if chdir worked
 		if (execvp(command, commandArgs) < 0) {
-			write(1,"Error in: execvp\n", 19);
-            // need to move the error to errors.txt
+			perror(EXECVP_ERROR);
+            //close(fdOutputFile);
+            //close(fdInputFile);
+            //close(resultsFd);
+            //close(fd);
+            //close(fdErrorFile);
             exit(-1);
 		}
 	} else {
@@ -100,43 +105,46 @@ void runFile(char* confLine2, char* cFileWithOutSuffix, int fdInputFile, int fdO
 }
 
 int compareOutputs(char* confLine3, char* pathToStudentDirectory) {
+    pid_t pid;
     // here we compare between to output files and return what comp.out gives us,
     char studentOutput[150] = {'\0'};
     strcat(studentOutput, pathToStudentDirectory);
     strcat(studentOutput, "/outputFile.txt");
-    printf("studentOutput is: %s\n", studentOutput);
     // we should use fork and child proccess
-    // there is a chance I need to give here a full path
     char* command = "./comp.out";
     char* commandArgs[4];
     commandArgs[0] = command;
     // confLine3 is excpectedOutput
     commandArgs[1] = confLine3;
-    // there is a chance I need to give here a full path
     commandArgs[2] = studentOutput;
     commandArgs[3] = NULL;
-    //printf("%s %s %s %s %s\n", command, commandArgs[0], commandArgs[1], commandArgs[2], commandArgs[3]);
     // Forking a child
-	// fork returns pid of the son
-	pid_t pid = fork();
-	// -1 failed
-	// need to print here perror - fork failed
-	if (pid == -1) {
-		write(2,"Error in: fork\n", 16);
-        // need to move the error to errors.txt
+	if ((pid = fork()) == -1) {
+        perror(FORK_ERROR);
+        //close(resultsFd);
+        //close(fd);
+        //close(fdErrorFile);
         exit(-1);
 	// if fork=0 im in son proccess
 	} else if (pid == 0) {
-        printf("inside pid 0 of compare\n");
         // going to the directory where comp.out is located
-        chdir(pathToStudentDirectory);
-        chdir("..");
-        chdir("..");
-		// need to print here perror "failed.."
-        // need to check if chdir worked
+        if (chdir(pathToStudentDirectory) == -1) {
+            perror(CHDIR_ERROR);
+            exit(-1);
+        }
+        if (chdir("..") == -1) {
+            perror(CHDIR_ERROR);
+            exit(-1);
+        }
+        if (chdir("..") == -1) {
+            perror(CHDIR_ERROR);
+            exit(-1);
+        }
 		if (execvp(command, commandArgs) < 0) {
-			write(1,"Error in: execvp\n", 1);
-            // need to move the error to errors.txt
+			perror(EXECVP_ERROR);
+            //close(resultsFd);
+            //close(fd);
+            //close(fdErrorFile);
             exit(-1);
         }
 	} else {
@@ -193,9 +201,18 @@ int main(int argc, char* argv[])
     confLine1 = strtok(buff, "\n");
     confLine2 = strtok(NULL, "\n");
     confLine3 = strtok(NULL, "\n");
-    printf("confLine1: %s\n", confLine1);
-    printf("confLine2: %s\n", confLine2);
-    printf("confLine3: %s\n", confLine3);
+
+    // check if confLine3 is a valid path
+    int fdGivenOutput;
+    if ((fdGivenOutput = open(confLine3, O_RDONLY)) == -1) {
+        perror(OPEN_ERROR);
+        write(fdErrorFile, "Output file not exist\n", 22);
+        write(fdErrorFile, "\n", 1);
+        close(fd);
+        close(fdErrorFile);
+        exit(-1);
+    }
+    close(fdGivenOutput);
 
     // creates results.csv file
     int resultsFd;
@@ -211,6 +228,8 @@ int main(int argc, char* argv[])
     DIR* dirOfAllStudents = opendir(confLine1);
     if (dirOfAllStudents == NULL) {
         perror(OPENDIR_ERROR);
+        write(fdErrorFile, "Not a valid directory\n", 22);
+        write(fdErrorFile, "\n", 1);
         close(resultsFd);
         close(fd);
         close(fdErrorFile);
@@ -294,6 +313,8 @@ int main(int argc, char* argv[])
                         fdInputFile = open(confLine2, O_RDONLY);
                         if (fdInputFile == -1) {
                             perror(OPEN_ERROR);
+                            write(fdErrorFile, "Input file not exist\n", 21);
+                            write(fdErrorFile, "\n", 1);
                             close(resultsFd);
                             close(fd);
                             close(fdErrorFile);
@@ -313,6 +334,7 @@ int main(int argc, char* argv[])
                         // the input we had given
                         int fdOutputFile;
                         fdOutputFile = open("outputFile.txt", O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+                        //fdOutputFile = open("outputFile.txt", O_RDWR | O_TRUNC | O_APPEND | O_CREAT, 0777);
                         if (fdOutputFile == -1) {
                             perror(OPEN_ERROR);
                             close(fdInputFile);
