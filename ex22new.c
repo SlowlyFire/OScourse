@@ -17,7 +17,7 @@
 #define CHDIR_ERROR "Error in: chdir"
 #define OPENDIR_ERROR "Error in: opendir"
 
-int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudentDirectory) {
+int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudentDirectory, int fdErrorFile) {
     pid_t pid;
     // here we compile the c file, with given path to the file
     // we should use fork and child proccess
@@ -30,6 +30,8 @@ int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudent
     commandArgs[4] = NULL;
     // Forking a child
 	// fork returns pid of the son
+    // redirection
+    dup2(fdErrorFile, 2);
 	if((pid = fork()) == -1) {
         perror(FORK_ERROR);
         //close(resultsFd);
@@ -158,6 +160,7 @@ int compareOutputs(char* confLine3, char* pathToStudentDirectory) {
 
 int main(int argc, char* argv[])
 {
+    char* tmpForUnlink;
     // creates errors.txt file
     int fdErrorFile;
     fdErrorFile = open("errors.txt", O_RDWR | O_TRUNC | O_APPEND | O_CREAT, 0777);
@@ -287,10 +290,12 @@ int main(int argc, char* argv[])
                         strcat(cFileWithOutSuffix, ".out");
 
                         // send the c file to compilation
-                        int compileResult = compileFile(pathToCFile, cFileWithOutSuffix, pathToStudentDirectory);
+                        int compileResult = compileFile(pathToCFile, cFileWithOutSuffix, pathToStudentDirectory, fdErrorFile);
 
-                        // compileResult will be 0 if managed to compile, and 1 if couldn't compile
+                        // compileResult will be 0 if managed to compile,
+                        // and 1 if couldn't compile
                         if (compileResult == 1) {
+                            //dup2()
                             if ((write(resultsFd, studentXDir -> d_name, strlen(studentXDir -> d_name))) == -1) {
                                 perror(WRITE_ERROR);
                                 close(resultsFd);
@@ -394,9 +399,14 @@ int main(int argc, char* argv[])
                                 exit(-1);
                             }
                         }
+
+                        tmpForUnlink = cFileWithOutSuffix;
                     }
                 }
             }
+            // delete in every student directory: outputFile.txt and name_of_file.out
+            unlink("outputFile.txt");
+            unlink(tmpForUnlink);
 
             // if flagCFile = 0 , then there was no ".c" file in the student directory
             if (flagCFile == 0) {
