@@ -16,11 +16,13 @@
 #define EXECVP_ERROR "Error in: execvp"
 #define CHDIR_ERROR "Error in: chdir"
 #define OPENDIR_ERROR "Error in: opendir"
+char cwd[150];
 
 int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudentDirectory, int fdErrorFile) {
     pid_t pid;
     // here we compile the c file, with given path to the file
     // we should use fork and child proccess
+    
     char* command = "gcc";
     char* commandArgs[5];
     commandArgs[0] = "gcc";
@@ -40,6 +42,12 @@ int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudent
         exit(-1);
 	// if fork=0 im in son proccess
 	} else if (pid == 0) {
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                                printf("Current working dir: %s\n", cwd);
+                            } else {
+                                perror("getcwd() error");
+                                return 1;
+                            }
         if (chdir(pathToStudentDirectory) == -1) {
             perror(CHDIR_ERROR);
             //close(resultsFd);
@@ -47,6 +55,12 @@ int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudent
             //close(fdErrorFile);
             exit(-1);
         }
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                                printf("Current working dir: %s\n", cwd);
+                            } else {
+                                perror("getcwd() error");
+                                return 1;
+                            }
 		if (execvp(command, commandArgs) < 0) {
 			perror(EXECVP_ERROR);
             //close(resultsFd);
@@ -160,6 +174,13 @@ int compareOutputs(char* confLine3, char* pathToStudentDirectory) {
 
 int main(int argc, char* argv[])
 {
+     
+//     if (getcwd(cwd, sizeof(cwd)) != NULL) {
+//        printf("Current working dir: %s\n", cwd);
+//    } else {
+//        perror("getcwd() error");
+//        return 1;
+//    }
     char* tmpForUnlink;
     // creates errors.txt file
     int fdErrorFile;
@@ -227,6 +248,12 @@ int main(int argc, char* argv[])
         exit(-1);
     }
 
+//     if (getcwd(cwd, sizeof(cwd)) != NULL) {
+//        printf("Current working dir: %s\n", cwd);
+//    } else {
+//        perror("getcwd() error");
+//        return 1;
+//    }
     // opens the directory we have got on confLine1
     DIR* dirOfAllStudents = opendir(confLine1);
     if (dirOfAllStudents == NULL) {
@@ -245,6 +272,7 @@ int main(int argc, char* argv[])
     while ( (studentXDir = readdir(dirOfAllStudents)) != NULL ) {
         if(strcmp(studentXDir -> d_name, ".") != 0 &&
         strcmp(studentXDir -> d_name, "..") != 0) {
+            
             // flagCFile is 0 when there is no c file in directory
             int flagCFile = 0;
             // now we create the path to the student directory
@@ -278,8 +306,8 @@ int main(int argc, char* argv[])
 
                         // build the c file a full path
                         char pathToCFile[150] = {'\0'};
-                        strcat(pathToCFile, pathToStudentDirectory);
-                        strcat(pathToCFile, "/");
+                        //strcat(pathToCFile, pathToStudentDirectory);
+                        //strcat(pathToCFile, "/");
                         strcat(pathToCFile, insideStudentDirectory -> d_name);
 
                         // build the c file name with ".out" suffix
@@ -288,10 +316,10 @@ int main(int argc, char* argv[])
                         cFileWithOutSuffix[lengthOfFileName-1] = '\0';
                         cFileWithOutSuffix[lengthOfFileName-2] = '\0';
                         strcat(cFileWithOutSuffix, ".out");
-
+                            
                         // send the c file to compilation
                         int compileResult = compileFile(pathToCFile, cFileWithOutSuffix, pathToStudentDirectory, fdErrorFile);
-
+                        printf("compile: %d\n", compileResult);
                         // compileResult will be 0 if managed to compile,
                         // and 1 if couldn't compile
                         if (compileResult == 1) {
@@ -312,7 +340,12 @@ int main(int argc, char* argv[])
                             }
                             continue;
                         }
-
+//     if (getcwd(cwd, sizeof(cwd)) != NULL) {
+//        printf("Current working dir: %s\n", cwd);
+//    } else {
+//        perror("getcwd() error");
+//        return 1;
+//    }
                         // opens the input file that we have got on confLine2
                         int fdInputFile;
                         fdInputFile = open(confLine2, O_RDONLY);
@@ -325,7 +358,12 @@ int main(int argc, char* argv[])
                             close(fdErrorFile);
                             exit(-1);
                         }
-
+ if (getcwd(cwd, sizeof(cwd)) != NULL) {
+       printf("Current working dir: %s\n", cwd);
+   } else {
+       perror("getcwd() error");
+       return 1;
+   }
                         if (chdir(pathToStudentDirectory) == -1) {
                             perror(CHDIR_ERROR);
                             close(fdInputFile);
@@ -334,7 +372,12 @@ int main(int argc, char* argv[])
                             close(fdErrorFile);
                             exit(-1);
                         }
-
+ if (getcwd(cwd, sizeof(cwd)) != NULL) {
+       printf("Current working dir: %s\n", cwd);
+   } else {
+       perror("getcwd() error");
+       return 1;
+   }
                         // creates an output file to each one of the students, based on
                         // the input we had given
                         int fdOutputFile;
@@ -348,10 +391,35 @@ int main(int argc, char* argv[])
                             close(fdErrorFile);
                             exit(-1);
                         }
-
+                        
+ if (getcwd(cwd, sizeof(cwd)) != NULL) {
+       printf("Current working dir: %s\n", cwd);
+   } else {
+       perror("getcwd() error");
+       return 1;
+   }
+                        printf("before running\n");
                         // run the compiled c file                        
                         runFile(confLine2, cFileWithOutSuffix, fdInputFile, fdOutputFile);
-                        
+                        printf("after running\n");
+                        if (chdir("..") == -1) {
+                            printf("here????????\n");
+                            perror(CHDIR_ERROR);
+                            close(fdInputFile);
+                            close(resultsFd);
+                            close(fd);
+                            close(fdErrorFile);
+                            exit(-1);
+                        }
+                        if (chdir("..") == -1) {
+                            printf("here2????????\n");
+                            perror(CHDIR_ERROR);
+                            close(fdInputFile);
+                            close(resultsFd);
+                            close(fd);
+                            close(fdErrorFile);
+                            exit(-1);
+                        }
                         // close files in the end of the use of fd
                         close(fdOutputFile);
                         close(fdInputFile);
@@ -360,7 +428,7 @@ int main(int argc, char* argv[])
                         // to the output we have got on the compiled and running c file of the student
                         int compareNum;
                         compareNum = compareOutputs(confLine3, pathToStudentDirectory);
-
+                        printf("compareNum is: %d\n", compareNum);
                         // append grades of students to results.csv file 
                         if ((write(resultsFd, studentXDir -> d_name, strlen(studentXDir -> d_name))) == -1) {
                             perror(WRITE_ERROR);
@@ -404,9 +472,34 @@ int main(int argc, char* argv[])
                     }
                 }
             }
+            if (chdir(pathToStudentDirectory) == -1) {
+                            perror(CHDIR_ERROR);
+                            close(resultsFd);
+                            close(fd);
+                            close(fdErrorFile);
+                            exit(-1);
+            }
             // delete in every student directory: outputFile.txt and name_of_file.out
             unlink("outputFile.txt");
             unlink(tmpForUnlink);
+
+            if (chdir("..") == -1) {
+                            printf("here????????\n");
+                            perror(CHDIR_ERROR);
+                            close(resultsFd);
+                            close(fd);
+                            close(fdErrorFile);
+                            exit(-1);
+                        }
+                        if (chdir("..") == -1) {
+                            printf("here2????????\n");
+                            perror(CHDIR_ERROR);
+                            close(resultsFd);
+                            close(fd);
+                            close(fdErrorFile);
+                            exit(-1);
+                        }
+
 
             // if flagCFile = 0 , then there was no ".c" file in the student directory
             if (flagCFile == 0) {
