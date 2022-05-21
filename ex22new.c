@@ -142,22 +142,9 @@ int compareOutputs(char* confLine3, char* pathToStudentDirectory) {
         //close(fdErrorFile);
         exit(-1);
 	// if fork=0 im in son proccess
-	} else if (pid == 0) {
-        // going to the directory where comp.out is located
-        if (chdir(pathToStudentDirectory) == -1) {
-            perror(CHDIR_ERROR);
-            exit(-1);
-        }
-        if (chdir("..") == -1) {
-            perror(CHDIR_ERROR);
-            exit(-1);
-        }
-        if (chdir("..") == -1) {
-            perror(CHDIR_ERROR);
-            exit(-1);
-        }
-		if (execvp(command, commandArgs) < 0) {
-			perror(EXECVP_ERROR);
+	} else if (pid == 0) 
+	if (execvp(command, commandArgs) < 0) {
+	    perror(EXECVP_ERROR);
             //close(resultsFd);
             //close(fd);
             //close(fdErrorFile);
