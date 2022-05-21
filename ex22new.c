@@ -16,6 +16,31 @@
 #define EXECVP_ERROR "Error in: execvp"
 #define CHDIR_ERROR "Error in: chdir"
 #define OPENDIR_ERROR "Error in: opendir"
+#define STAT_ERROR "Error in: stat"
+
+int isDirectory(char* path, char* pathToStudentDirectory) {
+    if (chdir(pathToStudentDirectory) == -1) {
+        perror(CHDIR_ERROR);
+        exit(-1);
+    }
+
+    struct stat buf;
+    if (stat(path, &buf) < 0) {
+        perror(STAT_ERROR);
+        exit(-1);
+    }
+    int returnVal = S_ISDIR(buf.st_mode);
+     if (chdir("..") == -1) {
+        perror(CHDIR_ERROR);
+        exit(-1);
+    }
+    if (chdir("..") == -1) {
+        perror(CHDIR_ERROR);
+        exit(-1);
+    }
+
+    return returnVal;
+}
 
 int compileFile(char* pathToCFile, char* cFileWithOutSuffix, char* pathToStudentDirectory, int fdErrorFile) {
     pid_t pid;
@@ -232,8 +257,11 @@ int main(int argc, char* argv[])
                 strcmp(insideStudentDirectory -> d_name, "..") != 0) {
                     lengthOfFileName =  strlen(insideStudentDirectory -> d_name);
                     // we only want to conentrate about ".c" files and to compile them
+                    // if there is a directory that ends with ".c" we skip
                     if((insideStudentDirectory -> d_name[lengthOfFileName-2]) == '.' 
-                    && (insideStudentDirectory -> d_name[lengthOfFileName-1]) == 'c') {
+                    && (insideStudentDirectory -> d_name[lengthOfFileName-1]) == 'c' 
+                    && (isDirectory(insideStudentDirectory -> d_name, pathToStudentDirectory) == 0)) {
+                        
                         // if we found a ".c" file in Student Directory, flagCFile is 1
                         flagCFile = 1;
 
@@ -386,20 +414,19 @@ int main(int argc, char* argv[])
             unlink(tmpForUnlink);
 
             if (chdir("..") == -1) {
-                            perror(CHDIR_ERROR);
-                            close(resultsFd);
-                            close(fd);
-                            close(fdErrorFile);
-                            exit(-1);
-                        }
-                        if (chdir("..") == -1) {
-                            perror(CHDIR_ERROR);
-                            close(resultsFd);
-                            close(fd);
-                            close(fdErrorFile);
-                            exit(-1);
-                        }
-
+                perror(CHDIR_ERROR);
+                close(resultsFd);
+                close(fd);
+                close(fdErrorFile);
+                exit(-1);
+            }
+            if (chdir("..") == -1) {
+                perror(CHDIR_ERROR);
+                close(resultsFd);
+                close(fd);
+                close(fdErrorFile);
+                exit(-1);
+            }
 
             // if flagCFile = 0 , then there was no ".c" file in the student directory
             if (flagCFile == 0) {
